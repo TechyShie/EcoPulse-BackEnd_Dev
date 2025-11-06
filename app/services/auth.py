@@ -21,10 +21,18 @@ def generate_username(email: str, full_name: str, db: Session) -> str:
     return username
 
 def create_user(db: Session, user_data: UserCreate):
+    # Truncate password if too long for bcrypt (72 byte limit)
+    password = user_data.password
+    if len(password.encode('utf-8')) > 72:
+        # Truncate to 72 bytes, handling multi-byte characters
+        password_bytes = password.encode('utf-8')[:72]
+        password = password_bytes.decode('utf-8', 'ignore')
+        print("⚠️  Password truncated to 72 bytes for bcrypt compatibility")
+    
     # Generate unique username
     username = generate_username(user_data.email, user_data.full_name, db)
     
-    hashed_password = get_password_hash(user_data.password)
+    hashed_password = get_password_hash(password)
     db_user = User(
         email=user_data.email,
         username=username,
