@@ -17,6 +17,8 @@ pytest-asyncio
 pytest-mock
 python-jose[cryptography]
 cryptography
+requests
+
 argon2-cffi
 passlib[bcrypt]
 
