@@ -1,3 +1,4 @@
+# schemas/user.py
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
 from datetime import datetime
@@ -22,6 +23,10 @@ class UserCreate(BaseModel):
     def password_strength(cls, v):
         if len(v) < 6:
             raise ValueError('Password must be at least 6 characters long')
+        # Optional safety cap (tune as you like). This is an operational cap,
+        # not a cryptographic one — it's to prevent abuse by extremely long inputs.
+        if len(v) > 4096:
+            raise ValueError('Password too long')
         return v
 
 class UserLogin(BaseModel):

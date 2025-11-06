@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from ...core.database import get_db
 from ...core.security import create_access_token
@@ -12,16 +13,24 @@ router = APIRouter()
 
 @router.post("/signup", response_model=UserResponse)
 def signup(user_data: UserCreate, db: Session = Depends(get_db)):
-    # Check if user already exists by email
-    if db.query(User).filter(User.email == user_data.email).first():
+    # Check email uniqueness at application level
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    
+
     try:
         user = create_user(db, user_data)
         return {"user": user, "message": "User created successfully"}
+    except IntegrityError:
+        # Catch DB-level unique constraint failures
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -36,10 +45,8 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
-    
-    access_token = create_access_token(
-        data={"sub": str(user.id)}
-    )
+
+    access_token = create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/logout")
